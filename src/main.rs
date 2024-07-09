@@ -99,11 +99,18 @@ async fn webhook_handler(
 
     tracing::debug!("Pulling");
 
-    let output = Command::new("docker")
+    let output = match Command::new("docker")
         .args(&["compose", "-f", compose_path, "pull"])
         .output()
         .await
-        .unwrap();
+    {
+        Ok(o) => o,
+        Err(e) => {
+            tracing::error!("{}", e);
+            unlock_mutex(lock_mutex).await;
+            return;
+        }
+    };
 
     tracing::debug!("{}", output.status);
     tracing::debug!("{}", String::from_utf8(output.stdout).unwrap());
@@ -111,18 +118,27 @@ async fn webhook_handler(
 
     tracing::debug!("Restarting");
 
-    let output = Command::new("docker")
+    let output = match Command::new("docker")
         .args(&["compose", "-f", compose_path, "restart"])
         .output()
         .await
-        .unwrap();
-
+    {
+        Ok(o) => o,
+        Err(e) => {
+            tracing::error!("{}", e);
+            unlock_mutex(lock_mutex).await;
+            return;
+        }
+    };
     tracing::debug!("{}", output.status);
     tracing::debug!("{}", String::from_utf8(output.stdout).unwrap());
     tracing::debug!("{}", String::from_utf8(output.stderr).unwrap());
 
     tracing::debug!("All done");
+    unlock_mutex(lock_mutex).await;
+}
 
+async fn unlock_mutex(lock_mutex: &Mutex<bool>) {
     let mut lock = lock_mutex.lock().await;
     *lock = false;
 }
