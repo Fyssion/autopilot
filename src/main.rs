@@ -69,7 +69,7 @@ async fn webhook_handler(
 
     match &project.package_names {
         Some(n) => {
-            if n.contains(&registry_package.name) {
+            if !n.contains(&registry_package.name) {
                 tracing::debug!("Received unknown package name ({})", registry_package.name,);
                 return;
             }
